@@ -2,13 +2,22 @@
 <html>
 <head>
 <script type="text/javascript">
-async function httpGetAsync(value, fieldName)
+function httpGetValues(valueName, fieldName)
 {
-    requesturl = "http://localhost:8080/" + value;
+    console.log("entered:", valueName);
 
-    response = await fetch(requesturl);
-    data     = await response.json();
-    document.querySelector(fieldName).value = data['asdf'];
+    requesturl = "http://localhost:8080/getvalue.html?" + valueName;
+
+    fetch(requesturl)
+        .then(response => {
+            console.log("response: " + valueName);
+            return response.json();
+        })
+        .then(data => {
+            console.log("data: " + valueName + "/" + data[valueName]);
+            return document.querySelector(fieldName).value = data[valueName];
+        });
+    console.log("left:", valueName);
 }
 </script>
 </head>
@@ -16,9 +25,10 @@ async function httpGetAsync(value, fieldName)
 <input type="text" name="wert1" id="wert1"><br/>
 <input type="text" name="wert2" id="wert2"><br/>
 <input type="text" name="wert3" id="wert3"><br/>
-
 <script type="text/javascript">
-httpGetAsync("status", "#wert1");
+httpGetValues("status", "#wert1");
+httpGetValues("temperature", "#wert2");
+httpGetValues("time", "#wert3");
 document.write("EXECUTED");
 </script>
 </body>
@@ -33,21 +43,3 @@ Content-Type: application/json
 {"asdf" : 44}
 -->
 
-
-
-<!--
-    response = await fetch(requesturl);
-    data = response.json();
-    document.querySelector(fieldName).value = data['asdf'];
--->
-
-
-
-<!--
-HTTP/1.0 200 OK
-Content-Type: application/json
-{
-"asdf" : 42,
-"ddddd" : 99
-}
--->

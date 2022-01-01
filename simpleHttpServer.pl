@@ -4,11 +4,12 @@
 
     use HTTP::Server::Simple::CGI;
     use base qw(HTTP::Server::Simple::CGI);
+    use Data::Dumper;
 
     my %dispatch = (
-        '/hello'  => \&resp_hello,
-        '/foobar' => \&resp_foobar,
-        '/status' => \&resp_status,
+        '/hello'         => \&resp_hello,
+        '/1.html'        => \&resp_1,
+        '/getvalue.html' => \&resp_getvalue,
         # ...
     );
 
@@ -17,6 +18,9 @@
         my $cgi  = shift;
 
         my $path = $cgi->path_info();
+
+        print(STDERR "request: $path\n");
+
         my $handler = $dispatch{$path};
 
         if (ref($handler) eq "CODE") {
@@ -43,21 +47,23 @@
               $cgi->end_html;
     }
 
-    sub resp_foobar {
+    sub resp_1 {
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
 
         my $who = $cgi->param('name');
 
+        print(STDERR "1.html\n");
+
         print "HTTP/1.0 200 OK\r\n";
         print $cgi->header;
 
-        if (open(my $fileHandle, "< D:/temp/1.html")) {
+        if (open(my $fileHandle, "< ./1.html")) {
             my @stuff = <$fileHandle>;
 
             foreach my $line (@stuff) {
                 print($line);
-                print(STDERR $line);
+                #print(STDERR $line);
             }
 
             close($fileHandle);
@@ -69,14 +75,22 @@
         print $cgi->end_html;
     }
 
-    sub resp_status {
+    sub resp_getvalue {
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
+
+        my $param = $cgi->param('keywords');
+#        print(STDERR Dumper($param));
+#        print(STDERR ">>>>>>>>>>>\n");
+#        print(STDERR Dumper($cgi));
+#        print(STDERR "<<<<<<<<<<<\n");
+
+        print(STDERR "sent: $param\n");
 
         print("HTTP/1.1 200 OK\n");
         print("Content-Type: application/json\n");
         print("\n");                                        # <---- this empty line is necessary!!!!
-        print("{\"asdf\" : 33 }\n");
+        print("{\"$param\" : \"$param"."$param"."\" }\n");
     }
 }
 
