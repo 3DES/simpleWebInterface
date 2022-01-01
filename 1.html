@@ -2,13 +2,13 @@
 <html>
 <head>
 <script type="text/javascript">
-function httpGetAsync(value, fieldName)
+async function httpGetAsync(value, fieldName)
 {
     requesturl = "http://localhost:8080/" + value;
 
-    fetch(requesturl)
-        .then(response => response.json())
-        .then(data => document.querySelector(fieldName).value = data['asdf']);
+    response = await fetch(requesturl);
+    data     = await response.json();
+    document.querySelector(fieldName).value = data['asdf'];
 }
 </script>
 </head>
@@ -23,6 +23,7 @@ document.write("EXECUTED");
 </script>
 </body>
 </html>
+
 
 
 <!--
