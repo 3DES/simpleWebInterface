@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript">
+function httpGetAsync(value, fieldName)
+{
+    requesturl = "http://localhost:8080/" + value;
+
+    fetch(requesturl)
+        .then(response => response.json())
+        .then(data => document.querySelector(fieldName).value = data['asdf']);
+}
+</script>
+</head>
+<body>
+<input type="text" name="wert1" id="wert1"><br/>
+<input type="text" name="wert2" id="wert2"><br/>
+<input type="text" name="wert3" id="wert3"><br/>
+
+<script type="text/javascript">
+httpGetAsync("status", "#wert1");
+document.write("EXECUTED");
+</script>
+</body>
+</html>
+
+
+<!--
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{"asdf" : 44}
+-->
+
+
+
+<!--
+    response = await fetch(requesturl);
+    data = response.json();
+    document.querySelector(fieldName).value = data['asdf'];
+-->
+
+
+
+<!--
+HTTP/1.0 200 OK
+Content-Type: application/json
+{
+"asdf" : 42,
+"ddddd" : 99
+}
+-->
