@@ -4,20 +4,9 @@
 <script type="text/javascript">
 function httpGetValues(valueName, fieldName)
 {
-    console.log("entered:", valueName);
-
-    requesturl = "http://localhost:8080/getvalue.html?" + valueName;
-
-    fetch(requesturl)
-        .then(response => {
-            console.log("response: " + valueName);
-            return response.json();
-        })
-        .then(data => {
-            console.log("data: " + valueName + "/" + data[valueName]);
-            return document.querySelector(fieldName).value = data[valueName];
-        });
-    console.log("left:", valueName);
+    fetch("http://localhost:8080/getvalue.html?" + valueName)
+        .then(response => response.json())
+            .then(data => document.querySelector(fieldName).value = data[valueName]);
 }
 </script>
 </head>
@@ -33,13 +22,3 @@ document.write("EXECUTED");
 </script>
 </body>
 </html>
-
-
-
-<!--
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{"asdf" : 44}
--->
-

@@ -75,22 +75,26 @@
         print $cgi->end_html;
     }
 
+    %data = (
+        "status"        => "OK",
+        "temperature"   => "4.5°C",
+        "time"          => "12:34:19",
+    );
+
     sub resp_getvalue {
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
 
         my $param = $cgi->param('keywords');
-#        print(STDERR Dumper($param));
-#        print(STDERR ">>>>>>>>>>>\n");
-#        print(STDERR Dumper($cgi));
-#        print(STDERR "<<<<<<<<<<<\n");
 
-        print(STDERR "sent: $param\n");
+        my $data = defined($data{$param}) ? $data{$param} : "UNDEF";
+
+        print(STDERR "sent: $param = $data\n");
 
         print("HTTP/1.1 200 OK\n");
         print("Content-Type: application/json\n");
         print("\n");                                        # <---- this empty line is necessary!!!!
-        print("{\"$param\" : \"$param"."$param"."\" }\n");
+        print("{\"$param\" : \"$data\" }\n");
     }
 }
 
