@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript">
+function httpGetValue(valueName, fieldName)
+{
+    fetch("http://localhost:8080/getvalue.html?" + valueName)
+        .then(response => response.json())
+            .then(data => document.querySelector(fieldName).value = data[valueName]);
+}
+</script>
+</head>
+<body>
+<table>
+<tr><td>Status</td><td><input type="text" name="status" id="status" size="10" style="direction: rtl;" readonly></td></tr>
+<tr><td>Temperatur</td><td><input type="text" name="temperature" id="temperature" size="10" style="direction: rtl;" readonly>&deg;C</td></tr>
+<tr><td>Zeit</td><td><input type="time" name="time" id="time" style="direction: rtl;"></td><td><button onClick='httpGetValue("time", "#time");'>Refresh</button></td></tr>
+<tr><td>Datum</td><td><input type="date" name="date" id="date" style="direction: rtl;"></td></tr>
+</table>
+<script type="text/javascript">
+httpGetValue("status", "#status");
+httpGetValue("temperature", "#temperature");
+httpGetValue("time", "#time");
+httpGetValue("date", "#date");
+//document.write(document.querySelector("#date").value);
+</script>
+</body>
+</html>

@@ -6,12 +6,53 @@
     use base qw(HTTP::Server::Simple::CGI);
     use Data::Dumper;
 
+
+
+    # supported requests
     my %dispatch = (
-        '/hello'         => \&resp_hello,
-        '/1.html'        => \&resp_1,
+        '/'              => \&resp_index,
+        '/index.html'    => \&resp_index,
         '/getvalue.html' => \&resp_getvalue,
+        '/hello'         => \&resp_hello,
+        '/jslib.js'      => \&resp_jslib,
         # ...
     );
+
+
+
+    # some sample values
+    my %data = (
+        "status"        => "OK",
+        "temperature"   => "4.5",
+        "time"          => [ 1, "12:34:19", "12:34:21" ],
+        "date"          => "2021-12-31",
+    );
+
+
+
+    sub printFile($) {
+        my ($fileName) = @_;
+
+        if (open(my $fileHandle, "< ./$fileName")) {
+            print(<$fileHandle>);
+            close($fileHandle);
+        }
+        else {
+            print(STDERR "Couldn't open file: $!");
+        }
+    }
+
+
+
+    sub printHeader($) {
+        my ($contentType) = @_;
+
+        print("HTTP/1.1 200 OK\n");
+        print("Content-Type: $contentType\n");
+        print("\n");                                        # <---- this empty line is necessary!!!!
+    }
+
+
 
     sub handle_request {
         my $self = shift;
@@ -34,6 +75,66 @@
         }
     }
 
+
+
+    sub resp_index {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $file = "index.html";
+
+        print(STDERR "$file\n");
+
+        printHeader("text/html");
+        printFile($file);
+    }
+    
+
+
+    sub resp_jslib {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $file = "jslib.js";
+
+        printHeader("text/javascript");
+        printFile($file);
+    }
+
+
+
+    sub resp_getvalue {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $param = $cgi->param('keywords');
+
+        my $data = "";
+        if (defined($data{$param})) {
+            $data = $data{$param};
+            print(STDERR Dumper($data));
+            if (ref($data) eq "ARRAY") {
+                my $index = $$data[0];
+                $$data[0]++;
+                if ($$data[0] >= int(@{$data})) {
+                    $$data[0] = 1;       # switch back to first value
+                }
+                print(STDERR Dumper($data));
+                $data = $$data[$index];
+            }
+        }
+        else {
+            $data = "UNDEF";
+        }
+
+        print(STDERR "sent: $param = $data\n");
+
+        printHeader("application/json");
+        print("{\"$param\" : \"$data\" }\n");
+    }
+
+
+
     sub resp_hello {
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
@@ -46,59 +147,12 @@
               $cgi->h1("Hello $who!"),
               $cgi->end_html;
     }
-
-    sub resp_1 {
-        my $cgi  = shift;   # CGI.pm object
-        return if !ref $cgi;
-
-        my $who = $cgi->param('name');
-
-        print(STDERR "1.html\n");
-
-        print "HTTP/1.0 200 OK\r\n";
-        print $cgi->header;
-
-        if (open(my $fileHandle, "< ./1.html")) {
-            my @stuff = <$fileHandle>;
-
-            foreach my $line (@stuff) {
-                print($line);
-                #print(STDERR $line);
-            }
-
-            close($fileHandle);
-        }
-        else {
-            print("Couldn't open file: $!");
-        }
-
-        print $cgi->end_html;
-    }
-
-    %data = (
-        "status"        => "OK",
-        "temperature"   => "4.5°C",
-        "time"          => "12:34:19",
-    );
-
-    sub resp_getvalue {
-        my $cgi  = shift;   # CGI.pm object
-        return if !ref $cgi;
-
-        my $param = $cgi->param('keywords');
-
-        my $data = defined($data{$param}) ? $data{$param} : "UNDEF";
-
-        print(STDERR "sent: $param = $data\n");
-
-        print("HTTP/1.1 200 OK\n");
-        print("Content-Type: application/json\n");
-        print("\n");                                        # <---- this empty line is necessary!!!!
-        print("{\"$param\" : \"$data\" }\n");
-    }
 }
+
+
 
 # start the server on port 8080
 my $pid = MyWebServer->new(8080)->background();
 print "Use 'kill $pid' to stop server.\n";
+
 
