@@ -1,6 +1,14 @@
 function httpGetValue(valueName, fieldName)
 {
-    fetch("http://localhost:8080/getvalue.html?" + valueName)
+    fetch("getvalue.html?" + valueName)
         .then(response => response.json())
             .then(data => document.querySelector(fieldName).value = data[valueName]);
 }
+
+function httpGetContent(contentName, fieldName)
+{
+    fetch(contentName)
+        .then(response => response.json())
+            .then(data => document.querySelector(fieldName).value = data);
+}
+

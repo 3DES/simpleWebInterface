@@ -1,4 +1,16 @@
 #!/usr/bin/perl
+
+
+
+###################
+# mini webserver to test the pages for miniSPS
+#
+# to (re-)start the mini webserver enter:
+#   clear; ps | grep perl | perl -pe '$_=~s/ +/ /g' | cut -d " " -f2 | xargs -I PS sh -c 'echo PS && kill PS'; ./simpleHttpServer.pl
+#######
+
+
+
 {
     package MyWebServer;
 
@@ -10,13 +22,61 @@
 
     # supported requests
     my %dispatch = (
-        '/'              => \&resp_index,
-        '/index.html'    => \&resp_index,
-        '/getvalue.html' => \&resp_getvalue,
-        '/hello.html'    => \&resp_hello,
-        '/jslib.js'      => \&resp_jslib,
+        '^\/$'              => \&resp_root,
+        '^\/.*\.html$'      => \&resp_html,
+        '^\/.*\.ico$'       => \&resp_ico,
+        '^\/.*\.jpg$'       => \&resp_jpg,
+        '^\/.*\.png$'       => \&resp_png,
+        '^\/.*\.js$'        => \&resp_js,
+        '^\/.*\.css$'       => \&resp_css,
+        '/getvalue.html'    => \&resp_getvalue,         # this will win since first string compare is done before regexes have been checked!
         # ...
     );
+
+
+    # handle received request
+    sub handle_request {
+        my $self = shift;
+        my $cgi  = shift;
+
+        # get requested path
+        my $path = $cgi->path_info();
+
+        print(STDERR "#################################\n");
+        print(STDERR "request: $path\n");
+
+        # path should be contained in %dispatch
+        my $handler = $dispatch{$path};
+
+        if (ref($handler) eq "CODE") {
+            # path found in %dispatch
+            $handler->($cgi);
+        }
+        else {
+            # maybe there is a regex in %dispatch that matches the request
+            foreach my $key (keys(%dispatch)) {
+                if ($path =~ /$key/) {
+                    # path found in %dispatch
+                    $handler = $dispatch{$key};
+                    last;
+                }
+            }
+
+            if (ref($handler) eq "CODE") {
+                # path found in %dispatch
+                $handler->($cgi);
+            }
+            else {
+                # path NOT found in %dispatch
+                print "HTTP/1.0 404 Not found\r\n";
+                print $cgi->header,
+                      $cgi->start_html('Not found'),
+                      $cgi->h1('Not found'),
+                      $cgi->end_html;
+                print(STDERR "not found\n");
+            }
+        }
+    }
 
 
 
@@ -24,14 +84,17 @@
     my %data = (
         "status"        => "OK",
         "temperature"   => "4.5",
-        "time"          => [ 1, "12:34:19", "12:34:21" ],
+        "time"          => [ 1, "12:34:19", "12:34:21" ],       # element [0] is used as index and must start with 1!, any following elements will be used to handle requests
         "date"          => "2021-12-31",
     );
 
 
 
+    # print a file to STDOUT (so it will be sent by web server to requesting client)
     sub printFile($) {
         my ($fileName) = @_;
+
+        print(STDERR "send: $fileName\n");
 
         if (open(my $fileHandle, "< ./$fileName")) {
             print(<$fileHandle>);
@@ -44,6 +107,7 @@
 
 
 
+    # print HTTP header to STDOUT (so it will be sent by web server to requesting client)
     sub printHeader($) {
         my ($contentType) = @_;
 
@@ -54,50 +118,93 @@
 
 
 
-    sub handle_request {
-        my $self = shift;
-        my $cgi  = shift;
-
-        my $path = $cgi->path_info();
-
-        print(STDERR "request: $path\n");
-
-        my $handler = $dispatch{$path};
-
-        if (ref($handler) eq "CODE") {
-            $handler->($cgi);
-        } else {
-            print "HTTP/1.0 404 Not found\r\n";
-            print $cgi->header,
-                  $cgi->start_html('Not found'),
-                  $cgi->h1('Not found'),
-                  $cgi->end_html;
-        }
-    }
-
-
-
-    sub resp_index {
+    # print html-file to STDOUT (so it will be sent by web server to requesting client)
+    sub resp_html {
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
 
-        my $file = "index.html";
-
-        print(STDERR "$file\n");
+        my $file = $cgi->path_info();
+        $file =~ s/^\///;                   # remove leading slash
 
         printHeader("text/html");
         printFile($file);
     }
-    
 
 
-    sub resp_jslib {
+
+    sub resp_root {
+        my $cgi  = shift;   # CGI.pm object
+        
+        resp_html(@_);
+    }
+
+
+
+    # print js-file to STDOUT (so it will be sent by web server to requesting client)
+    sub resp_js {
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
 
-        my $file = "jslib.js";
+        my $file = $cgi->path_info();
+        $file =~ s/^\///;                   # remove leading slash
 
         printHeader("text/javascript");
+        printFile($file);
+    }
+
+
+
+    # print css-file to STDOUT (so it will be sent by web server to requesting client)
+    sub resp_css {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $file = $cgi->path_info();
+        $file =~ s/^\///;                   # remove leading slash
+
+        printHeader("text/css");
+        printFile($file);
+    }
+
+
+
+    # print ico-file to STDOUT (so it will be sent by web server to requesting client)
+    sub resp_ico {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $file = $cgi->path_info();
+        $file =~ s/^\///;                   # remove leading slash
+
+        printHeader("image/x-icon");
+        printFile($file);
+    }
+
+
+
+    # print ico-file to STDOUT (so it will be sent by web server to requesting client)
+    sub resp_jpg {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $file = $cgi->path_info();
+        $file =~ s/^\///;                   # remove leading slash
+
+        printHeader("image/jpeg");
+        printFile($file);
+    }
+
+
+
+    # print ico-file to STDOUT (so it will be sent by web server to requesting client)
+    sub resp_png {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $file = $cgi->path_info();
+        $file =~ s/^\///;                   # remove leading slash
+
+        printHeader("image/png");
         printFile($file);
     }
 
@@ -112,14 +219,14 @@
         my $data = "";
         if (defined($data{$param})) {
             $data = $data{$param};
-            print(STDERR Dumper($data));
+
             if (ref($data) eq "ARRAY") {
                 my $index = $$data[0];
                 $$data[0]++;
                 if ($$data[0] >= int(@{$data})) {
                     $$data[0] = 1;       # switch back to first value
                 }
-                print(STDERR Dumper($data));
+
                 $data = $$data[$index];
             }
         }
@@ -135,18 +242,18 @@
 
 
 
-    sub resp_hello {
-        my $cgi  = shift;   # CGI.pm object
-        return if !ref $cgi;
-
-        my $who = $cgi->param('name');
-
-        print "HTTP/1.0 200 OK\r\n";
-        print $cgi->header,
-              $cgi->start_html("Hello"),
-              $cgi->h1("Hello $who!"),
-              $cgi->end_html;
-    }
+#    sub resp_hello {
+#        my $cgi  = shift;   # CGI.pm object
+#        return if !ref $cgi;
+#
+#        my $who = $cgi->param('name');
+#
+#        print "HTTP/1.0 200 OK\r\n";
+#        print $cgi->header,
+#              $cgi->start_html("Hello"),
+#              $cgi->h1("Hello $who!"),
+#              $cgi->end_html;
+#    }
 }
 
 
