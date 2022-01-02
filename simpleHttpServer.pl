@@ -13,7 +13,7 @@
         '/'              => \&resp_index,
         '/index.html'    => \&resp_index,
         '/getvalue.html' => \&resp_getvalue,
-        '/hello'         => \&resp_hello,
+        '/hello.html'    => \&resp_hello,
         '/jslib.js'      => \&resp_jslib,
         # ...
     );
@@ -48,7 +48,7 @@
         my ($contentType) = @_;
 
         print("HTTP/1.1 200 OK\n");
-        print("Content-Type: $contentType\n");
+        print("Content-Type: $contentType; charset=ISO-8859-1\n");
         print("\n");                                        # <---- this empty line is necessary!!!!
     }
 
