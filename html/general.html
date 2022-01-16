@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="/jslib.js" type="text/javascript"></script>
+<link rel="stylesheet" href="/menu.css">
+</head>
+<body>
+<div id="pageContent"></div>
+
+
+<script type="text/javascript">
+    const blocks = [
+        {
+            "name" : "Date / Time",
+            "elements" : [
+                { "name" : "Date",                  "tag" : "__SYSTEM_DATE__", "type" : "date" },
+                { "name" : "Time",                  "tag" : "__SYSTEM_TIME__", "type" : "time" },
+            ]
+        },
+        {
+            "name" : "General Settings",
+            "elements" : [
+                { "name" : "Display Timeout [s]",   "tag" : "__SYSTEM_DISPLAY_TIMEOUT__", "type" : "edit", "flags" : [ "length = 3" ] }
+            ]
+        },
+    ];
+
+    function repaint() {
+        processBlocks(function(){ return window.frameElement.parentNode.style.display !== "none"},
+                      document.getElementById("pageContent"),
+                      blocks,
+                      2,
+                      "60%");
+    }
+
+    repaint();
+</script>
+</body>
+</html>

@@ -17,19 +17,24 @@
     use HTTP::Server::Simple::CGI;
     use base qw(HTTP::Server::Simple::CGI);
     use Data::Dumper;
-
-
-
+    use POSIX;
+    
+    my $htmlSourceFolder = "./html";
+#    my $htmlSourceFolder = "./html/compressed";
+#    my $htmlSourceFolder = "./html/gzipped";
+    
     # supported requests
     my %dispatch = (
         '^\/$'              => \&resp_root,
         '^\/.*\.html$'      => \&resp_html,
         '^\/.*\.ico$'       => \&resp_ico,
         '^\/.*\.jpg$'       => \&resp_jpg,
+        '^\/.*\.gif$'       => \&resp_gif,
         '^\/.*\.png$'       => \&resp_png,
         '^\/.*\.js$'        => \&resp_js,
         '^\/.*\.css$'       => \&resp_css,
         '/getvalue.html'    => \&resp_getvalue,         # this will win since first string compare is done before regexes have been checked!
+        '/setvalue.html'    => \&resp_setvalue,         # this will win since first string compare is done before regexes have been checked!
         # ...
     );
 
@@ -82,10 +87,36 @@
 
     # some sample values
     my %data = (
-        "status"        => "OK",
-        "temperature"   => "4.5",
-        "time"          => [ 1, "12:34:19", "12:34:21" ],       # element [0] is used as index and must start with 1!, any following elements will be used to handle requests
-        "date"          => "2021-12-31",
+        "__SYSTEM_VERSION__"                                => "0.1b (2022-01-02 17:15:30)",
+        "__SYSTEM_CPU_CORE__"                               => "espressif xyz",
+        "__SYSTEM_HEAP_FREE__"                              => 230,
+        "__SYSTEM_FLASH_USED__"                             => 1207,
+        "__SYSTEM_FLASH_SIZE__"                             => 4096,
+        "__SYSTEM_RAM_SIZE__"                               => 512,
+        "__SYSTEM_DATE__"                                   => sub {return strftime("%Y-%m-%d", localtime(time))},
+        "__SYSTEM_TIME__"                                   => sub {return strftime("%H:%M", localtime(time))},
+        "__SYSTEM_DISPLAY_TIMEOUT__"                        => 5,
+
+        "__WIFI_SSID__"                                     => [ 1, "local wifi", "neighbor" ],
+        "__WIFI_PASSPHRASE__"                               => "w8fv0s98df0f9jc80wse98d9s8jt0vt98sd0cfj",
+        "__WIFI_HOSTNAME__"                                 => "miniSPS",
+        "__WIFI_IP__"                                       => [ 1, "192.168.168.24", "192.168.168.25" ],
+        "__WIFI_GATEWAY__"                                  => "192.168.168.254",
+        "__WIFI_SUBNET__"                                   => "255.255.255.0",
+        "__WIFI_MANUAL_IP__"                                => "192.168.177.3",
+        "__WIFI_MANUAL_GATEWAY__"                           => "192.168.177.1",
+        "__WIFI_MANUAL_SUBNET__"                            => "255.255.255.0",
+        "__WIFI_MAC__"                                      => "32:42:16:42:A2:FF",
+        "__WIFI_STRENGTH__"                                 => [ 1, "-73", "-50", "-64"],
+        "__WIFI_ENABLED__"                                  => [ 1, 0, 1],
+        "__WIFI_AVAILABLE_SSIDS__"                          => [ 1, [ 2, "aaa", "neighbor", "local wifi" ], [ 1, "aaa", "neighbor", "local wifi" ] ],       # inner index (2) is the selected element!
+
+        "__ACCESS_POINT_IP__"                               => "192.168.4.1",
+        "__ACCESS_POINT_SUBNET__"                           => "255.255.255.0",
+        "__ACCESS_POINT_MAC__"                              => "12:42:F2:34:19:A3",
+        "__ACCESS_POINT_CONNECTED_STATIONS__"               => [ 1, "1", "3", "2", "5", "3" ],
+        "__ACCESS_POINT_ENABLED__"                          => [ 1, 0, 1],
+        "__ACCESS_POINT_ALWAYS_ON__"                        => [ 1, 0, 0, 1],
     );
 
 
@@ -96,7 +127,7 @@
 
         print(STDERR "send: $fileName\n");
 
-        if (open(my $fileHandle, "< ./$fileName")) {
+        if (open(my $fileHandle, "< $htmlSourceFolder/$fileName")) {
             print(<$fileHandle>);
             close($fileHandle);
         }
@@ -117,14 +148,22 @@
     }
 
 
+    sub printPostAnswer() {
+        print("HTTP/1.1 201 Created\n\n");
+    }
+
+
 
     # print html-file to STDOUT (so it will be sent by web server to requesting client)
     sub resp_html {
         my $cgi  = shift;   # CGI.pm object
+        my $additional = shift;
         return if !ref $cgi;
 
-        my $file = $cgi->path_info();
+        my $file = (defined($additional) ? $additional : $cgi->path_info());
         $file =~ s/^\///;                   # remove leading slash
+
+        print(STDERR "html: $file\n");
 
         printHeader("text/html");
         printFile($file);
@@ -134,8 +173,8 @@
 
     sub resp_root {
         my $cgi  = shift;   # CGI.pm object
-        
-        resp_html(@_);
+        print(STDERR "redirect to index.html\n");
+        resp_html($cgi, "/index.html");
     }
 
 
@@ -197,6 +236,20 @@
 
 
     # print ico-file to STDOUT (so it will be sent by web server to requesting client)
+    sub resp_gif {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $file = $cgi->path_info();
+        $file =~ s/^\///;                   # remove leading slash
+
+        printHeader("image/gif");
+        printFile($file);
+    }
+
+
+
+    # print ico-file to STDOUT (so it will be sent by web server to requesting client)
     sub resp_png {
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
@@ -209,6 +262,17 @@
     }
 
 
+    sub resp_setvalue {
+        my $cgi  = shift;   # CGI.pm object
+        return if !ref $cgi;
+
+        my $param = $cgi->param('POSTDATA');
+
+        print(STDERR "received: $param\n");
+        
+#        printPostAnswer();
+    }
+
 
     sub resp_getvalue {
         my $cgi  = shift;   # CGI.pm object
@@ -216,11 +280,16 @@
 
         my $param = $cgi->param('keywords');
 
+        my $DUMP = ($param eq "__WIFI_SCAN_SSID__") || 1;
+
+        my $listFound = 0;
+
         my $data = "";
         if (defined($data{$param})) {
             $data = $data{$param};
 
             if (ref($data) eq "ARRAY") {
+                print STDERR Dumper($data, $param) if ($DUMP);
                 my $index = $$data[0];
                 $$data[0]++;
                 if ($$data[0] >= int(@{$data})) {
@@ -228,16 +297,27 @@
                 }
 
                 $data = $$data[$index];
+                if (ref($data) eq "ARRAY") {
+                    # array containing an array e.g. to handle list elements
+                    my @temp = @{$data};
+                    my $selected = shift(@temp);
+                    print STDERR Dumper("SPLIT: ", @temp);
+                    $data = '[ ' . $selected. ', "' . join('", "', @temp) . '" ]';
+                    $listFound = 1;
+                }
+            }
+            elsif (ref($data) eq "CODE") {
+                $data = $data->();
             }
         }
         else {
             $data = "UNDEF";
         }
 
-        print(STDERR "sent: $param = $data\n");
+        print(STDERR "sent: $param = $data\n") if ($DUMP);
 
         printHeader("application/json");
-        print("{\"$param\" : \"$data\" }\n");
+        print("{\"$param\" : ".((($data =~ /^\d+$/) || $listFound) ? "$data" : "\"$data\"")." }\n");
     }
 
 
