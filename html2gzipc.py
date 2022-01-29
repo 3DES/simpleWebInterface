@@ -1,3 +1,8 @@
+######################################################
+# either to be executed within platformio
+# ormanually with "python3.6 ./html2gzipc.py"
+######################################################
+
 #Import("env", "projenv")       # projenv only in post scripts!
 if "Import" in globals():
     Import("env")
@@ -11,7 +16,8 @@ else:
     }
     defines = {
         # values taken from build_flags if executed in platformio
-        "USE_PRECOMPRESSED_WEB_FILES" : 1,
+        "USE_PRECOMPRESSED_WEB_FILES" : 1,          # use this for final release!
+#        "USE_PRECOMPRESSED_WEB_FILES" : 0,          # use this for debugging!
         "WRITE_GZIPPED_WEB_FILES"     : 1
     }
 import gzip
@@ -31,7 +37,7 @@ enumsFile             = "src/htmlEnums.h"
 #enumsFile             = ""                  # with this line enabled htmlEnums.h will be ignored!
 extensions            = [".html",     ".ico",         ".jpg",       ".png",      ".js",             ".css",     ".json"]                # insert all supported file extensions here (don't add .cpp or .h or you will get an endless loop!)
 contentTypes          = ["text/html", "image/x-icon", "image/jpeg", "image/png", "text/javascript", "text/css", "application/json"]     # order must match with order of elements in extensions array!!!
-
+getValueLeadingChar   = "X";
 
 
 #if "Import" in globals():
@@ -521,7 +527,7 @@ try:
                     toolPrint("invalid line found in " + enumsFileName + "::" + str(lineCounter) + " [ " + line + "]")
                     raise ValueError(42, "invalid line found in " + enumsFileName + "::" + str(lineCounter), line)
 
-                enums[match[1]] = str(matchedEnums)
+                enums[match[1]] = getValueLeadingChar + str(matchedEnums)
                 matchedEnums += 1
 
             if not line:

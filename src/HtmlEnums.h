@@ -35,37 +35,49 @@
  * If you want an alias for any of the entries define it inside another enum afterwards or somewhere else!
  */
 enum {
+    // read from and written to NVS
     __ACCESS_POINT_ALWAYS_ON__,
-    __ACCESS_POINT_CONNECTED_STATIONS__,
     __ACCESS_POINT_ENABLED__,
     __ACCESS_POINT_IP__,
     __ACCESS_POINT_MAC__,
     __ACCESS_POINT_SUBNET__,
+    __ACCESS_POINT_SSID__,
 
-    __SYSTEM_CPU_CORE__,
-    __SYSTEM_DATE__,
     __SYSTEM_DISPLAY_TIMEOUT__,
-    __SYSTEM_FLASH_SIZE__,
-    __SYSTEM_FLASH_USED__,
-    __SYSTEM_HEAP_FREE__,
-    __SYSTEM_RAM_SIZE__,
-    __SYSTEM_TIME__,
-    __SYSTEM_VERSION__,
 
-    __WIFI_AVAILABLE_SSIDS__,
     __WIFI_DHCP__,
     __WIFI_ENABLED__,
-    __WIFI_GATEWAY__,
-    __WIFI_HOSTNAME__,
-    __WIFI_IP__,
-    __WIFI_MAC__,
     __WIFI_MANUAL_GATEWAY__,
     __WIFI_MANUAL_IP__,
     __WIFI_MANUAL_SUBNET__,
     __WIFI_PASSPHRASE__,
+    __WIFI_TX_POWER__,
     __WIFI_SSID__,
-    __WIFI_STRENGTH__,
     __WIFI_SUBNET__,
+
+    // included in NVS but need to be checked from code first (e.g. optional values, values that are "contained" in HW but can be overwritten, ...)
+    __WIFI_MAC__,
+
+    // handled by any code pieces
+    __SYSTEM_CPU_CORE__,
+    __SYSTEM_DATE__,
+    __SYSTEM_FLASH_SIZE__,
+    __SYSTEM_FLASH_USED__,
+    __SYSTEM_HEAP_FREE__,
+    __SYSTEM_HEAP_NEVER_USED__,
+    __SYSTEM_RAM_SIZE__,
+    __SYSTEM_TIME__,
+    __SYSTEM_VERSION__,
+    __SYSTEM_REBOOT__,
+
+    __ACCESS_POINT_CONNECTED_STATIONS__,
+
+    __WIFI_AVAILABLE_SSIDS__,
+    __WIFI_GATEWAY__,
+    __WIFI_HOSTNAME__,
+    __WIFI_IP__,
+    __WIFI_STRENGTH__,
+    __WIFI_RECONNECT__,
 };
 
 

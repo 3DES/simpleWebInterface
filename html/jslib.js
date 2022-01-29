@@ -1,11 +1,16 @@
 "use strict";
 
-const dataRequest = "data-requests";
-const dataUpload  = "data-upload";
-const getValueUrl = "getvalue.html";
-const setValueUrl = "setvalue.html";
+const dataRequest = "data-requests";        // all elements given in block definition have to be requested during site load and during reload, so they are stored inside the DOME
+const dataUpload  = "data-upload";          // all elements that are not read-only must be sendable to the server and therefore are stored inside the DOME
+const getValueUrl = "getvalue.html";        // site to be called to get a value from server
+const setValueUrl = "setvalue.html";        // site to be called to set a value into server
 
 
+/**
+ * Requests given value from server and inserts it into current web page
+ *
+ * @param valueName        value that has to be requested from server
+ */
 async function httpGetValue(valueName)
 {
     let response = await fetch(getValueUrl + "?" + valueName);
@@ -46,6 +51,7 @@ async function httpGetValue(valueName)
     }
 }
 
+
 //function httpGetContent(contentName, fieldName)
 //{
 //    fetch(contentName)
@@ -55,27 +61,46 @@ async function httpGetValue(valueName)
 //            });
 //}
 
+
+/**
+ * Send reqeust to the web server
+ *
+ * @param key       id of the value to be sent
+ * @param value     content to be sent
+ */
+function post(key, value) {
+    fetch(setValueUrl, {
+        method: 'post',
+        headers: {'Content-Type' : 'application/json'},
+        body: "{ \"" + key + "\" : \"" + value + "\" }"
+    });
+}
+
+
+/**
+ * Prepare element data to be sent up to the web server
+ *
+ * @param element       element which content has to be sent up to the server
+ */
 function upload(element) {
     if (element.hasAttribute(dataUpload)) {
-        var data = JSON.parse(element.getAttribute(dataUpload));
+        let data = JSON.parse(element.getAttribute(dataUpload));
         let uploads = Object.keys(data);
         uploads.forEach(upload => {
             let content;
             let type = data[upload];
             let input = document.getElementById(upload);
-            
+
             switch (type) {
-                case "edit":
-                case "date":
-                case "time":
-                    content = input.value;
-                    break;
                 case "list":
                     content = input.options[input.selectedIndex].value;
                     break;
                 case "slider":
                     content = input.checked ? "1" : "0";
                     break;
+                case "date":
+                case "time":
+                case "edit":
                 case "hostname":
                 case "ip4":
                 case "mac":
@@ -83,39 +108,51 @@ function upload(element) {
                         content = input.value;
                     }
                     else {
-                        window.alert("input of [" + upload + "] is not valid!");
+                        window.alert("value [" + input.value + "] is not valid!");
                     }
                     break;
                 default:
                     window.alert("unhandled type [" + type + "] in upload()");
                     break;
             }
-            
+
             if (content.length) {
-                fetch(setValueUrl, {
-                    method: 'post',
-                    headers: {'Content-Type' : 'application/json'},
-                    body: "{ \"" + upload + "\" : \"" + content + "\" }"
-                });
+                post(upload, content);
             }
         });
     }
 }
 
 
+/**
+ * check if given element contains given flag
+ *
+ * @param element   element from json block given via html page
+ * @param flag      the flag the given element should be checked if it contains it
+ * @result          flag content if exist or simply the flag itselfe if it exists but has no value
+ */
 function hasFlag(element, flag) {
-    var result = false;
+    let result = false;
     if (element.flags != null) {
-        if (flag == "length") {
-            var regex = /^length *= *(\d+)$/;
-            var index = 0;
-            var matched;
-            for (; index < element.flags.length && (matched = element.flags[index].match(regex)); index++);
-            if (matched != null && matched[1] > 0) {
+        if (["length", "pattern"].includes(flag)) {
+            // extended flag with value, e.g. "length = 42"
+            let index = 0;
+            let matched;
+            let regex;
+            if (flag == "length") {
+                regex = /^length *= *(\d+)$/;
+            }
+            else if (flag == "pattern") {
+                regex = /^pattern *= *(.+)$/;
+            }
+            // search flags element for given flag
+            for (; index < element.flags.length && !(matched = element.flags[index].match(regex)); index++);
+            if (matched != null) {
                 result = matched[1];
             }
         }
         else {
+            // simple flag, e.g. "readonly" without further value
             result = element.flags.includes(flag);
         }
     }
@@ -124,6 +161,18 @@ function hasFlag(element, flag) {
 }
 
 
+/**
+ * check if given element contains given flag
+ *
+ * @param block         a definition block from json data the html page should be 
+ * @param columns       to calculate proper column with we need to know how many columns are to be used for json data
+ * @param titleWidth    percent of the current column the title should use (title + background)
+ * @result              array containing
+ *                          [0] = created html content
+ *                          [1] = all elements that need to be requested
+ *                          [2] = all elements that need to be refreshed periodically
+ *                          [3] = all elements that will be uploaded back to the web server if [save] button has been pressed
+ */
 function createBlock(block, columns = 2, titleWidth = "60%") {
     let requestCollect = [];
     let refreshCollect = [];
@@ -145,65 +194,75 @@ function createBlock(block, columns = 2, titleWidth = "60%") {
     block.elements.forEach(element => {
         let elementName = element.name;
         let requestName = element.tag;
-        html += "<tr><td width=\"" + columnWidth + "\">" + elementName + "</td><td>\n";
+        let elementHtml = "<tr><td width=\"" + columnWidth + "\">" + elementName + "</td><td>\n";
         let type = (element.type != null) ? element.type : "text";
-        var readonly = false;
-        var textDefault = "<input type=\"text\" style=\"width:90%\" ";
+        let readonly = false;
+        let textDefault = "<input type=\"text\" style=\"width:90%\" ";
+        let requestPossible = true;
         switch(type) {
             default:
                 readonly = true;
                 window.alert("unhandled type [" + type + "] in createBlock()");
                 break;
+            case "button":
+                // overwrite default initialization of elementHtml (button needs only one column)
+                elementHtml = "<tr><td width=\"" + columnWidth + "\">" + "<td align=\"center\">\n" + "<button onclick=\"post('" + requestName + "', 'true')\">" + elementName + "</button>\n";
+                requestPossible = false;        // no value request for buttons!
+                break;
             case "text":
                 // such elements are always readonly
                 readonly = true;
-                html += "<div id=\"" + requestName + "\"></div>\n";
+                elementHtml += "<div id=\"" + requestName + "\"></div>\n";
                 break;
             case "edit":
                 readonly = hasFlag(element, "readonly");
-                var setLength = hasFlag(element, "length");
-                html += textDefault + "id=\"" + requestName + "\" " + (readonly ? "readonly" : "") + (setLength ? " maxlength=" + setLength : "") + ">\n";
+                let setLength = hasFlag(element, "length");
+                let setPattern = hasFlag(element, "pattern");
+                elementHtml += textDefault + "id=\"" + requestName + "\" " + (readonly ? "readonly" : "") + (setLength ? " maxlength=\"" + setLength + "\"": "") + (setPattern ? " pattern=\"" + setPattern + "\"": "")+ ">\n";
                 break;
             case "date":
                 readonly = hasFlag(element, "readonly");
-                html += "<input type=\"date\" id=\"" + requestName + "\" " + (readonly ? "readonly" : "") + ">\n";
+                elementHtml += "<input type=\"date\" id=\"" + requestName + "\" " + (readonly ? "readonly" : "") + ">\n";
                 break;
             case "time":
                 readonly = hasFlag(element, "readonly");
-                //html += "<input type=\"time\" id=\"" + requestName + "\" " + (readonly ? "readonly" : "") + ">\n";
-                html += "<input type=\"time\" step=\"60\" id=\"" + requestName + "\" " + (readonly ? "readonly" : "") + ">\n";
+                elementHtml += "<input type=\"time\" step=\"60\" id=\"" + requestName + "\" " + (readonly ? "readonly" : "") + ">\n";
                 break;
             case "ip4":
-                html += textDefault + "id=\"" + requestName + "\" " + "maxlength=\"15\" pattern=\"^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)(\\.(?!$)|$)){4}$\">\n";
+                elementHtml += textDefault + "id=\"" + requestName + "\" " + "maxlength=\"15\" pattern=\"^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)(\\.(?!$)|$)){4}$\">\n";
                 break;
             case "hostname":
-                html += textDefault + "id=\"" + requestName + "\" " + "maxlength=\"30\" pattern=\"^[A-Za-z]([A-Za-z0-9\\-]{0,28}[A-Za-z0-9])?$\">\n";
+                elementHtml += textDefault + "id=\"" + requestName + "\" " + "maxlength=\"30\" pattern=\"^[A-Za-z]([A-Za-z0-9\\-]{0,28}[A-Za-z0-9])?$\">\n";
                 break;
             case "mac":
-                html += textDefault + "id=\"" + requestName + "\" " + "maxlength=\"17\" pattern=\"^([0-9A-F]{2}:){5}[0-9A-F]{2}$\">\n";
+                elementHtml += textDefault + "id=\"" + requestName + "\" " + "maxlength=\"17\" pattern=\"^([0-9A-F]{2}:){5}[0-9A-F]{2}$\">\n";
                 break;
             case "list":
                 readonly = hasFlag(element, "readonly");
-                html += "<select id=\"" + requestName + "\" " + (readonly ? "disabled=\"true\"" : "") + ">\n";
+                elementHtml += "<select id=\"" + requestName + "\" " + (readonly ? "disabled=\"true\"" : "") + ">\n";
                 break;
             case "slider":
                 readonly = hasFlag(element, "readonly");
-                html += "<label class=\"switch\">\n";
-                html += "<input type=\"checkbox\" id=\"" + requestName + "\" " + (readonly ? "onclick=\"return false;\"" : "") + ">\n";
-                html += "<span class=\"slider round\"></span>\n";
-                html += "</label>\n";
+                elementHtml += "<label class=\"switch\">\n";
+                elementHtml += "<input type=\"checkbox\" id=\"" + requestName + "\" " + (readonly ? "onclick=\"return false;\"" : "") + ">\n";
+                elementHtml += "<span class=\"slider round\"></span>\n";
+                elementHtml += "</label>\n";
                 break;
         }
-        html += "</td></tr>\n";
+        elementHtml += "</td></tr>\n";
 
-        if (!readonly) {
-            uploadCollect[ requestName ] = type;
-        }
+        if (requestPossible) {
+            if (!readonly) {
+                uploadCollect[ requestName ] = type;
+            }
 
-        requestCollect.push(requestName);
-        if (hasFlag(element, "refresh")) {
-            refreshCollect.push(requestName);
+            requestCollect.push(requestName);
+            if (hasFlag(element, "refresh")) {
+                refreshCollect.push(requestName);
+            }
         }
+        
+        html += elementHtml;
     });
 
     html += "</table>\n";
@@ -276,13 +335,14 @@ function processBlocks(activeFunction, divObject, blocks, columns = 2, titleWidt
     let refreshes = [];
 
     if (divObject.hasAttribute(dataRequest)) {
-        // refresh function will be called periodically to refresh all elements with flag "refresh"
+        // site already set up so we have been called to refresh all elements on this site containing "refresh" flag
         refreshes = divObject.getAttribute(dataRequest).split(",");
         refresh(activeFunction, refreshes);
     }
     else {
-        var innerHtml = "";
-        var blockCount = 0;
+        // first call so initially set up the site
+        let innerHtml = "";
+        let blockCount = 0;
 
         let requests = [];
         let uploads  = {};
@@ -334,7 +394,7 @@ function processBlocks(activeFunction, divObject, blocks, columns = 2, titleWidt
             httpGetValue(request);
         });
 
-        // refresh function will be called periodically to refresh all elements with flag "refresh"
+        // refresh function will be called periodically to refresh all elements containing "refresh" flag
         function refresh(activeFunction, refreshes) {
             if (activeFunction()) {
                 refreshes.forEach(refresh => {
@@ -355,12 +415,16 @@ function processBlocks(activeFunction, divObject, blocks, columns = 2, titleWidt
     }
 }
 
+
+/**
+ * main part
+ */
 var cssIds = [ 'slider.css', 'blocks.css' ];
 cssIds.forEach(css => {
     if (!document.getElementById(css))
     {
-        var head  = document.getElementsByTagName('head')[0];
-        var link  = document.createElement('link');
+        let head  = document.getElementsByTagName('head')[0];
+        let link  = document.createElement('link');
         link.id   = css;
         link.rel  = 'stylesheet';
         link.type = 'text/css';

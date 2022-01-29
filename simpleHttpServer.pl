@@ -11,6 +11,10 @@
 
 
 
+my $getValueLeadingChar = "X";
+
+
+
 {
     package MyWebServer;
 
@@ -18,11 +22,11 @@
     use base qw(HTTP::Server::Simple::CGI);
     use Data::Dumper;
     use POSIX;
-    
-    my $htmlSourceFolder = "./html";
+
+#    my $htmlSourceFolder = "./html";
 #    my $htmlSourceFolder = "./html/compressed";
-#    my $htmlSourceFolder = "./html/gzipped";
-    
+    my $htmlSourceFolder = "./html/gzipped";
+
     # supported requests
     my %dispatch = (
         '^\/$'              => \&resp_root,
@@ -37,6 +41,18 @@
         '/setvalue.html'    => \&resp_setvalue,         # this will win since first string compare is done before regexes have been checked!
         # ...
     );
+
+    my $headerFile = "./src/htmlEnums.h";
+    open(my $fileHandle, "< $headerFile") or die("Cannot open header file [$headerFile]: $!");
+    my $content = join("", <$fileHandle>);
+    close($fileHandle);
+    $content =~ s/.*enum *{ *\n//s;     # remove stuff up to "enum {"
+    $content =~ s/};.*//s;              # remove stuff after end of enum "}"
+    $content =~ s/^ *\/\/.*\n//gm;      # remove all comments
+    $content =~ s/^ *\n//gm;            # remove "empty" lines
+    $content =~ s/^ +//gm;              # remove leading blanks
+    $content =~ s/,.*//gm;              # remove trailing commas
+    my @content = split("\n", $content);                # used to convert number indices
 
 
     # handle received request
@@ -90,6 +106,7 @@
         "__SYSTEM_VERSION__"                                => "0.1b (2022-01-02 17:15:30)",
         "__SYSTEM_CPU_CORE__"                               => "espressif xyz",
         "__SYSTEM_HEAP_FREE__"                              => 230,
+        "__SYSTEM_HEAP_NEVER_USED__"                        => 112,
         "__SYSTEM_FLASH_USED__"                             => 1207,
         "__SYSTEM_FLASH_SIZE__"                             => 4096,
         "__SYSTEM_RAM_SIZE__"                               => 512,
@@ -109,10 +126,12 @@
         "__WIFI_MAC__"                                      => "32:42:16:42:A2:FF",
         "__WIFI_STRENGTH__"                                 => [ 1, "-73", "-50", "-64"],
         "__WIFI_ENABLED__"                                  => [ 1, 0, 1],
+        "__WIFI_TX_POWER__"                                 => 27,
         "__WIFI_AVAILABLE_SSIDS__"                          => [ 1, [ 2, "aaa", "neighbor", "local wifi" ], [ 1, "aaa", "neighbor", "local wifi" ] ],       # inner index (2) is the selected element!
 
         "__ACCESS_POINT_IP__"                               => "192.168.4.1",
         "__ACCESS_POINT_SUBNET__"                           => "255.255.255.0",
+        "__ACCESS_POINT_SSID__"                             => "foobar",
         "__ACCESS_POINT_MAC__"                              => "12:42:F2:34:19:A3",
         "__ACCESS_POINT_CONNECTED_STATIONS__"               => [ 1, "1", "3", "2", "5", "3" ],
         "__ACCESS_POINT_ENABLED__"                          => [ 1, 0, 1],
@@ -127,7 +146,21 @@
 
         print(STDERR "send: $fileName\n");
 
-        if (open(my $fileHandle, "< $htmlSourceFolder/$fileName")) {
+        my $compressed = 0;
+
+        my $contentEncoding = "";
+
+        $fileName = $htmlSourceFolder."/".$fileName;
+        if (-e $fileName.".gz") {
+            $fileName .= ".gz";
+            $compressed = 1;
+        }
+
+        if (open(my $fileHandle, "< $fileName")) {
+            if ($compressed) {
+                print("Content-Encoding: gzip\n");
+            }
+            print("\n");                                        # <---- this empty line is necessary (two \n\n separate the header from the content)!!!!
             print(<$fileHandle>);
             close($fileHandle);
         }
@@ -144,7 +177,6 @@
 
         print("HTTP/1.1 200 OK\n");
         print("Content-Type: $contentType; charset=ISO-8859-1\n");
-        print("\n");                                        # <---- this empty line is necessary!!!!
     }
 
 
@@ -269,7 +301,7 @@
         my $param = $cgi->param('POSTDATA');
 
         print(STDERR "received: $param\n");
-        
+
 #        printPostAnswer();
     }
 
@@ -278,7 +310,17 @@
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
 
-        my $param = $cgi->param('keywords');
+        my $initialParam = $cgi->param('keywords');
+        my $param;
+
+        # a number indice has to be converted (in case gzip files are used instead of unpacked ones...)
+        if ($initialParam =~ /^$getValueLeadingChar(\d+)$/) {
+            $param = $content[$1];
+            print(STDERR "convert number indice: [$initialParam] -> [$param]\n");
+        }
+        else {
+            $param = $initialParam;
+        }
 
         my $DUMP = ($param eq "__WIFI_SCAN_SSID__") || 1;
 
@@ -314,10 +356,14 @@
             $data = "UNDEF";
         }
 
-        print(STDERR "sent: $param = $data\n") if ($DUMP);
+    
+        $data = ((($data =~ /^\d+$/) || $listFound) ? "$data" : "\"$data\"");
+        $initialParam = "\"$initialParam\"";
+        print(STDERR "sent: { $initialParam : $data } # [\"$param\"]\n") if ($DUMP);
 
         printHeader("application/json");
-        print("{\"$param\" : ".((($data =~ /^\d+$/) || $listFound) ? "$data" : "\"$data\"")." }\n");
+        print("\n");
+        print("{ $initialParam : $data }\n");
     }
 
 

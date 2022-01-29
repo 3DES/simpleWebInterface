@@ -19,8 +19,10 @@ build steps:
     [send] and [cancel] buttons will automatically be provided if there is at least one none-readonly element defined in "blocks"
     for more information please have a short look into one of the demo pages, e.g. overview.html
     that's all and you will get a fully interactive web page that can automatically refresh data if set and even upload changed settings if needed
-    
-2) new defines should be put into src/htmlDefines.h
+
+2) new defines (__XXX__) should be put into src/htmlDefines.h
+    search for all used defines:
+        cat html/*.html | grep __ | perl -pe '$_=~s/.*(__.*__).*/$1/' | sort | uniq | perl -pe '$_ =~ s/(.*)/    $1,/'
 
 3) ./pre-compress.sh   should be executed to get smaller sources (~ 20%-30% smaller as with gzip only)
         - download and install nodejs
@@ -40,6 +42,13 @@ build steps:
         cpan install <package>
     for example if you get told that "HTTP/Server/Simple/CGI" is missing please enter
         cpan install HTTP::Server::Simple::CGI
+    execute it with:
+        ./simpleHttpServer.pl
+    available under
+        http://localhost:8080
+        http://<yourip>:8080
+    don't forget to kill an already running instance before executing a new one (e.g. because parameters have been changed)!
+    you don't have to restart the server just because you changed the html/css/js stuff!
 
 6) html2gzipc.py is compatible with platformio and can be used there during build time by adding this line to your platformio.ini file:
     extra_scripts = pre:scripts/html2gzipc.py

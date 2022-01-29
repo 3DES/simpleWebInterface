@@ -9,7 +9,7 @@ if [ -d $targetPath ]; then
     do
         fileName=$(basename $file)
         echo compress [$fileName]
-        uglifyjs --compress --mangle -- "$file" > "$targetPath/$fileName"
+        uglifyjs --compress --mangle --mangle-props --verbose -- "$file" > "$targetPath/$fileName"
     done
 
     # compress html files

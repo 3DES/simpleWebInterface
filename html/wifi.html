@@ -13,31 +13,35 @@
         {
             "name" : "WiFi Uplink",
             "elements" : [
-                { "name" : "Available SSIDs",       "tag" : "__WIFI_AVAILABLE_SSIDS__", "type" : "list"                            },
-                { "name" : "Connected SSID",        "tag" : "__WIFI_SSID__"                                                        },
-                { "name" : "Pass Phrase",           "tag" : "__WIFI_PASSPHRASE__", "type" : "edit", "flags" : [ "length = 64" ]    },
-                { "name" : "Hostname",              "tag" : "__WIFI_HOSTNAME__", "type" : "hostname", "flags" : [ "length = 20" ]  },
-                { "name" : "IP",                    "tag" : "__WIFI_MANUAL_IP__", "type" : "ip4", "flags" : [ "length = 15" ]      },
-                { "name" : "Gateway",               "tag" : "__WIFI_MANUAL_GATEWAY__", "type" : "ip4", "flags" : [ "length = 15" ] },
-                { "name" : "Subnetmask",            "tag" : "__WIFI_MANUAL_SUBNET__", "type" : "ip4", "flags" : [ "length = 15" ]  },
-                { "name" : "IP",                    "tag" : "__WIFI_IP__"                                                          },
-                { "name" : "Gateway",               "tag" : "__WIFI_GATEWAY__"                                                     },
-                { "name" : "Subnetmask",            "tag" : "__WIFI_SUBNET__"                                                      },
-                { "name" : "MAC",                   "tag" : "__WIFI_MAC__"                                                         },
-                { "name" : "Signal [dBm]",          "tag" : "__WIFI_STRENGTH__", "flags" : [ "refresh" ]                           },
-                { "name" : "DHCP",                  "tag" : "__WIFI_DHCP__", "type" : "slider"                                     },
-                { "name" : "Enabled",               "tag" : "__WIFI_ENABLED__", "type" : "slider"                                  }
+                { "name" : "Available SSIDs",               "tag" : "__WIFI_AVAILABLE_SSIDS__", "type" : "list"                                  },
+                { "name" : "Connected SSID",                "tag" : "__WIFI_SSID__"                                                              },
+                { "name" : "Pass Phrase",                   "tag" : "__WIFI_PASSPHRASE__",      "type" : "edit",     "flags" : [ "length = 64" ] },
+                { "name" : "Hostname",                      "tag" : "__WIFI_HOSTNAME__",        "type" : "hostname", "flags" : [ "length = 20" ] },
+                { "name" : "IP",                            "tag" : "__WIFI_MANUAL_IP__",       "type" : "ip4",      "flags" : [ "length = 15" ] },
+                { "name" : "Gateway",                       "tag" : "__WIFI_MANUAL_GATEWAY__",  "type" : "ip4",      "flags" : [ "length = 15" ] },
+                { "name" : "Subnetmask",                    "tag" : "__WIFI_MANUAL_SUBNET__",   "type" : "ip4",      "flags" : [ "length = 15" ] },
+                { "name" : "IP",                            "tag" : "__WIFI_IP__"                                                                },
+                { "name" : "Gateway",                       "tag" : "__WIFI_GATEWAY__"                                                           },
+                { "name" : "Subnetmask",                    "tag" : "__WIFI_SUBNET__"                                                            },
+                { "name" : "MAC",                           "tag" : "__WIFI_MAC__"                                                               },
+                { "name" : "Signal [dBm]",                  "tag" : "__WIFI_STRENGTH__",                             "flags" : [ "refresh" ]     },
+                { "name" : "DHCP",                          "tag" : "__WIFI_DHCP__",            "type" : "slider"                                },
+                { "name" : "Enabled",                       "tag" : "__WIFI_ENABLED__",         "type" : "slider"                                },
+                { "name" : "WiFi output power [-4..78]",    "tag" : "__WIFI_TX_POWER__",        "type" : "edit",     "flags" : [ "length = 2", "pattern = ^(-[1-4]|[0-9]|[1-6][0-9]|7[0-8])$" ] },
+                { "name" : "RECONNECT",                     "tag" : "__WIFI_RECONNECT__",       "type" : "button"                                },
+                { "name" : "REBOOT",                        "tag" : "__SYSTEM_REBOOT__",        "type" : "button"                                }
             ]
         },
         {
             "name" : "Access Point",
             "elements" : [
-                { "name" : "IP",                 "tag" : "__ACCESS_POINT_IP__", "type" : "ip4", "flags" : [ "length = 15" ]       },
-                { "name" : "Subnetmask",         "tag" : "__ACCESS_POINT_SUBNET__", "type" : "ip4", "flags" : [ "length = 15" ]   },
-                { "name" : "MAC",                "tag" : "__ACCESS_POINT_MAC__"                                                   },
-                { "name" : "Connections",        "tag" : "__ACCESS_POINT_CONNECTED_STATIONS__", "flags" : [ "refresh" ]           },
-                { "name" : "Enabled",            "tag" : "__ACCESS_POINT_ENABLED__", "type" : "slider", "flags" : [ "refresh" ]   },
-                { "name" : "Always On",          "tag" : "__ACCESS_POINT_ALWAYS_ON__",  "type" : "slider", "flags" : [ "refresh" ]}
+                { "name" : "IP",                 "tag" : "__ACCESS_POINT_IP__",        "type" : "ip4",    "flags" : [ "length = 15" ] },
+                { "name" : "Subnetmask",         "tag" : "__ACCESS_POINT_SUBNET__",    "type" : "ip4",    "flags" : [ "length = 15" ] },
+                { "name" : "SSID",               "tag" : "__ACCESS_POINT_SSID__",      "type" : "edit",   "flags" : [ "length = 32", "pattern = ^([A-Za-z0-9\-_]{3,})$" ] },
+                { "name" : "MAC",                "tag" : "__ACCESS_POINT_MAC__"                                                       },
+                { "name" : "Connections",        "tag" : "__ACCESS_POINT_CONNECTED_STATIONS__",           "flags" : [ "refresh" ]     },
+                { "name" : "Enabled",            "tag" : "__ACCESS_POINT_ENABLED__",   "type" : "slider"                              },
+                { "name" : "Always On",          "tag" : "__ACCESS_POINT_ALWAYS_ON__", "type" : "slider"                              }
             ]
         },
     ];
@@ -49,7 +53,6 @@
                       2,
                       "60%");
     }
-
     repaint();
 </script>
 </body>
