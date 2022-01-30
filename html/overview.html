@@ -3,11 +3,6 @@
 <head>
 <script src="/jslib.js" type="text/javascript"></script>
 <link rel="stylesheet" href="/menu.css">
-</head>
-<body>
-<div id="pageContent"></div>
-
-
 <script type="text/javascript">
     const blocks = [
         {
@@ -59,7 +54,13 @@
                       "60%");
     }
 
-    repaint();
+    document.addEventListener("DOMContentLoaded", function() {
+        // this function runs when the DOM is ready, i.e. when the document has been parsed
+        repaint();
+    });
 </script>
+</head>
+<body>
+<div id="pageContent"></div>
 </body>
 </html>

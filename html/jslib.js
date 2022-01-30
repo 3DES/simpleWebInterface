@@ -1,6 +1,7 @@
 "use strict";
 
-const dataRequest = "data-requests";        // all elements given in block definition have to be requested during site load and during reload, so they are stored inside the DOME
+const dataRequest = "data-requests";        // all elements given in block definition have to be requested during site load and during reload, so they are stored inside the DOM
+const dataValues  = "data-values";          // values stored during last request, so if an upload is necessary check data with this content and if it is identical it has not to be uploaded
 const dataUpload  = "data-upload";          // all elements that are not read-only must be sendable to the server and therefore are stored inside the DOME
 const getValueUrl = "getvalue.html";        // site to be called to get a value from server
 const setValueUrl = "setvalue.html";        // site to be called to set a value into server
@@ -11,43 +12,85 @@ const setValueUrl = "setvalue.html";        // site to be called to set a value 
  *
  * @param valueName        value that has to be requested from server
  */
-async function httpGetValue(valueName)
+async function httpGetValues(valueNames)
 {
-    let response = await fetch(getValueUrl + "?" + valueName);
+    let requestString = "";
+    valueNames.forEach(valueName => {
+        if (requestString.length) {
+            requestString += "&";
+        }
+        requestString += valueName;
+    });
 
+    let response = await fetch(getValueUrl + "?" + requestString);
     let data     = await response.json();
-    let fieldName = '#' + valueName;
 
-    let object = document.querySelector(fieldName);
-    if ((object.localName == "input") && (object.type == "checkbox")) {
-        // slider
-        object.checked = (data[valueName] ? true : false);
-    }
-    else if (object.localName == "input") {
-        // text field
-        object.value = data[valueName];
-    }
-    else if (object.localName == "select") {
-        // list box
-        while (object.firstChild) {
-            object.removeChild(object.lastChild);
+    // we expect that all requested elements belong to same page!
+    let requestData;
+    let divObject;
+
+    valueNames.forEach(valueName => {
+        let fieldName = '#' + valueName;
+
+        let object = document.querySelector(fieldName);
+
+        // get stored data if DOM is already available
+        if (requestData == null) {
+            if (object.ownerDocument != null) {
+                divObject = object.ownerDocument.getElementById("pageContent");     // get div object from page where values belong to
+                if (divObject != null) {
+                    requestData = JSON.parse(divObject.getAttribute(dataValues));       // load stored data values to overwrite the newly requested ones and write them back together with the not requested ones
+                }
+            }
         }
-        let list = data[valueName];
-        let selected = list.shift();
-        list.forEach(listEntry => {
-            let option = document.createElement("option");
-            option.value = listEntry;
-            option.appendChild(document.createTextNode(listEntry));
-            object.appendChild(option);
-        });
-        if (selected >= 0 && selected < list.length) {
+
+        let storeValue;
+
+        if ((object.localName == "input") && (object.type == "checkbox")) {
+            // slider
+            storeValue = (data[valueName] ? 1 : 0);
+            object.checked = storeValue;
+        }
+        else if (object.localName == "input") {
+            // text field
+            storeValue = data[valueName];
+            object.value = storeValue;
+        }
+        else if (object.localName == "select") {
+            // list box
+            while (object.firstChild) {
+                object.removeChild(object.lastChild);
+            }
+            let list = data[valueName];
+            let selected = list.shift();
+            list.forEach(listEntry => {
+                let option = document.createElement("option");
+                option.value = listEntry;
+                option.appendChild(document.createTextNode(listEntry));
+                object.appendChild(option);
+            });
+
+            // ensure a valid element has been selected
+            if (selected < 0 || selected > list.length) {
+                selected = 0;
+            }
+            
             object.options[selected].selected = "selected";
+            storeValue = object.options[selected].text;
         }
-        //object.options[selected].style.color = "green";
-    }
-    else {
-        // anything else (hopefully works)
-        object.innerText = data[valueName];
+        else {
+            // anything else (hopefully works)
+            storeValue = data[valueName];
+            object.innerText = storeValue;
+        }
+        
+        if (requestData != null) {
+            requestData[fieldName] = storeValue;
+        }
+    });
+    
+    if (requestData != null) {
+        divObject.setAttribute(dataValues, JSON.stringify(requestData));         // write updated data back to DOM
     }
 }
 
@@ -63,17 +106,27 @@ async function httpGetValue(valueName)
 
 
 /**
- * Send reqeust to the web server
+ * Send json request to the web server
+ *
+ * @param jsonString        set of key:value pairs to be sent to the web server
+ */
+function postJson(jsonString) {
+    fetch(setValueUrl, {
+        method: 'post',
+        headers: {'Content-Type' : 'application/json'},
+        body: jsonString
+    });
+}
+
+
+/**
+ * Prepare single request and send it to the web server
  *
  * @param key       id of the value to be sent
  * @param value     content to be sent
  */
 function post(key, value) {
-    fetch(setValueUrl, {
-        method: 'post',
-        headers: {'Content-Type' : 'application/json'},
-        body: "{ \"" + key + "\" : \"" + value + "\" }"
-    });
+    postJson("{ \"" + key + "\" : \"" + value + "\" }");
 }
 
 
@@ -86,6 +139,11 @@ function upload(element) {
     if (element.hasAttribute(dataUpload)) {
         let data = JSON.parse(element.getAttribute(dataUpload));
         let uploads = Object.keys(data);
+
+        let requestData = JSON.parse(element.getAttribute(dataValues));       // load stored data values to overwrite the newly requested ones and write them back together with the not requested ones
+
+        // ensure only to upload stuff that has been changed and then upload it all together with one post message
+        let postMessage = "";
         uploads.forEach(upload => {
             let content;
             let type = data[upload];
@@ -96,7 +154,7 @@ function upload(element) {
                     content = input.options[input.selectedIndex].value;
                     break;
                 case "slider":
-                    content = input.checked ? "1" : "0";
+                    content = input.checked ? 1 : 0;
                     break;
                 case "date":
                 case "time":
@@ -108,18 +166,34 @@ function upload(element) {
                         content = input.value;
                     }
                     else {
+                        postMessage = "";
                         window.alert("value [" + input.value + "] is not valid!");
                     }
                     break;
                 default:
+                    postMessage = "";
                     window.alert("unhandled type [" + type + "] in upload()");
                     break;
             }
 
-            if (content.length) {
-                post(upload, content);
+            if (content != null) {
+                let oldValue = requestData["#" + upload];
+                if (content != oldValue) {
+                    requestData["#" + upload] = content;
+                    
+                    if (postMessage.length) {
+                        postMessage += ", ";
+                    }
+                    postMessage += upload + " : " + content;
+                }
             }
         });
+
+        if (postMessage.length) {
+            postMessage = "{ " + postMessage + " }";        // finalize json string
+            postJson(postMessage);                          // post it up
+            element.setAttribute(dataValues, JSON.stringify(requestData));         // write updated data back to DOM
+        }
     }
 }
 
@@ -206,7 +280,7 @@ function createBlock(block, columns = 2, titleWidth = "60%") {
                 break;
             case "button":
                 // overwrite default initialization of elementHtml (button needs only one column)
-                elementHtml = "<tr><td width=\"" + columnWidth + "\">" + "<td align=\"center\">\n" + "<button onclick=\"post('" + requestName + "', 'true')\">" + elementName + "</button>\n";
+                elementHtml = "<tr><td width=\"" + columnWidth + "\">" + "<td align=\"center\">\n" + "<button onclick=\"post('" + requestName + "', '1')\">" + elementName + "</button>\n";
                 requestPossible = false;        // no value request for buttons!
                 break;
             case "text":
@@ -326,9 +400,7 @@ function createBlock(block, columns = 2, titleWidth = "60%") {
 function processBlocks(activeFunction, divObject, blocks, columns = 2, titleWidth = "60%", refreshInterval = 5000) {
     function refresh(activeFunction, refreshes) {
         if (activeFunction()) {
-            refreshes.forEach(refresh => {
-                httpGetValue(refresh);
-            });
+            httpGetValues(refreshes);
         }
     }
 
@@ -389,17 +461,16 @@ function processBlocks(activeFunction, divObject, blocks, columns = 2, titleWidt
         divObject.innerHTML = innerHtml;
         //document.getElementById("overviewContent").innerHTML = innerHtml;
 
+        // prepare data-values to store request values into DOM
+        divObject.setAttribute(dataValues, JSON.stringify({}));      // store empty json object
+
         // request all elements from server
-        requests.forEach(request => {
-            httpGetValue(request);
-        });
+        httpGetValues(requests);
 
         // refresh function will be called periodically to refresh all elements containing "refresh" flag
         function refresh(activeFunction, refreshes) {
             if (activeFunction()) {
-                refreshes.forEach(refresh => {
-                    httpGetValue(refresh);
-                });
+                httpGetValues(refreshes);                
             }
         }
 

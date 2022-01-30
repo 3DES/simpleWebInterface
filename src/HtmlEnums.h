@@ -44,6 +44,10 @@ enum {
     __ACCESS_POINT_SSID__,
 
     __SYSTEM_DISPLAY_TIMEOUT__,
+    __SYSTEM_GMT_DELTA__,
+    __SYSTEM_NTP_ENABLED__,
+    __SYSTEM_SUMMER_TIME__,
+    __SYSTEM_WINTER_TIME__,
 
     __WIFI_DHCP__,
     __WIFI_ENABLED__,

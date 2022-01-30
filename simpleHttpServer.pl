@@ -46,14 +46,14 @@ my $getValueLeadingChar = "X";
     open(my $fileHandle, "< $headerFile") or die("Cannot open header file [$headerFile]: $!");
     my $content = join("", <$fileHandle>);
     close($fileHandle);
-    $content =~ s/.*enum *{ *\n//s;     # remove stuff up to "enum {"
-    $content =~ s/};.*//s;              # remove stuff after end of enum "}"
-    $content =~ s/^ *\/\/.*\n//gm;      # remove all comments
-    $content =~ s/^ *\n//gm;            # remove "empty" lines
-    $content =~ s/^ +//gm;              # remove leading blanks
-    $content =~ s/,.*//gm;              # remove trailing commas
-    my @content = split("\n", $content);                # used to convert number indices
-
+    $content =~ s/.*enum *{ *[\x0A\x0D]+//s;    # remove stuff up to "enum {"
+    $content =~ s/};.*//s;                      # remove stuff after end of enum "}"
+    $content =~ s/^ *\/\/.*[\x0A\x0D]+//gm;     # remove all comments
+    $content =~ s/^ *[\x0A\x0D]+//gm;           # remove "empty" lines
+    $content =~ s/^ +//gm;                      # remove leading blanks
+    $content =~ s/,.*//gm;                      # remove trailing commas
+    my @content = split("[\x0A\x0D]+", $content);                # used to convert number indices
+    print(STDERR "read enums from header file:\n".Dumper(@content));
 
     # handle received request
     sub handle_request {
@@ -113,6 +113,9 @@ my $getValueLeadingChar = "X";
         "__SYSTEM_DATE__"                                   => sub {return strftime("%Y-%m-%d", localtime(time))},
         "__SYSTEM_TIME__"                                   => sub {return strftime("%H:%M", localtime(time))},
         "__SYSTEM_DISPLAY_TIMEOUT__"                        => 5,
+
+        "__SYSTEM_NTP_ENABLED__"                            => 1,
+        "__SYSTEM_TIME_ZONE__"                              => "GMT+1GMT,M3.5.0/02,M10.5.0/03",            # valid time zone strings for NTP servers see e.g. here: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 
         "__WIFI_SSID__"                                     => [ 1, "local wifi", "neighbor" ],
         "__WIFI_PASSPHRASE__"                               => "w8fv0s98df0f9jc80wse98d9s8jt0vt98sd0cfj",
@@ -310,60 +313,78 @@ my $getValueLeadingChar = "X";
         my $cgi  = shift;   # CGI.pm object
         return if !ref $cgi;
 
-        my $initialParam = $cgi->param('keywords');
-        my $param;
+        #print STDERR Dumper $cgi;
+        #print STDERR Dumper $cgi->param;
 
-        # a number indice has to be converted (in case gzip files are used instead of unpacked ones...)
-        if ($initialParam =~ /^$getValueLeadingChar(\d+)$/) {
-            $param = $content[$1];
-            print(STDERR "convert number indice: [$initialParam] -> [$param]\n");
+        my $response = "";
+        my @parameters;
+        if (defined($cgi->param('keywords'))) {
+            @parameters = ($cgi->param('keywords'));
         }
         else {
-            $param = $initialParam;
+            @parameters = $cgi->param;
         }
+        foreach my $initialParam (@parameters) {
+            my $param;
 
-        my $DUMP = ($param eq "__WIFI_SCAN_SSID__") || 1;
+            # a number indice has to be converted (in case gzip files are used instead of unpacked ones...)
+            if ($initialParam =~ /^$getValueLeadingChar(\d+)$/) {
+                $param = $content[$1];
+                print(STDERR "convert number indice: [$initialParam] -> [$param]\n");
+            }
+            else {
+                $param = $initialParam;
+            }
 
-        my $listFound = 0;
+            my $DUMP = ($param eq "__WIFI_SCAN_SSID__") || 1;
 
-        my $data = "";
-        if (defined($data{$param})) {
-            $data = $data{$param};
+            my $listFound = 0;
 
-            if (ref($data) eq "ARRAY") {
-                print STDERR Dumper($data, $param) if ($DUMP);
-                my $index = $$data[0];
-                $$data[0]++;
-                if ($$data[0] >= int(@{$data})) {
-                    $$data[0] = 1;       # switch back to first value
-                }
+            my $data = "";
+            if (defined($data{$param})) {
+                $data = $data{$param};
 
-                $data = $$data[$index];
                 if (ref($data) eq "ARRAY") {
-                    # array containing an array e.g. to handle list elements
-                    my @temp = @{$data};
-                    my $selected = shift(@temp);
-                    print STDERR Dumper("SPLIT: ", @temp);
-                    $data = '[ ' . $selected. ', "' . join('", "', @temp) . '" ]';
-                    $listFound = 1;
+                    #print STDERR Dumper($data, $param) if ($DUMP);
+                    my $index = $$data[0];
+                    $$data[0]++;
+                    if ($$data[0] >= int(@{$data})) {
+                        $$data[0] = 1;       # switch back to first value
+                    }
+
+                    $data = $$data[$index];
+                    if (ref($data) eq "ARRAY") {
+                        # array containing an array e.g. to handle list elements
+                        my @temp = @{$data};
+                        my $selected = shift(@temp);
+                        #print STDERR Dumper("SPLIT: ", @temp);
+                        $data = '[ ' . $selected. ', "' . join('", "', @temp) . '" ]';
+                        $listFound = 1;
+                    }
+                }
+                elsif (ref($data) eq "CODE") {
+                    $data = $data->();
                 }
             }
-            elsif (ref($data) eq "CODE") {
-                $data = $data->();
+            else {
+                $data = "UNDEF";
             }
-        }
-        else {
-            $data = "UNDEF";
+
+        
+            $data = ((($data =~ /^\d+$/) || $listFound) ? "$data" : "\"$data\"");
+            $initialParam = "\"$initialParam\"";
+
+            $response .= ", "       if (length($response));
+            $response .= "$initialParam : $data";
         }
 
-    
-        $data = ((($data =~ /^\d+$/) || $listFound) ? "$data" : "\"$data\"");
-        $initialParam = "\"$initialParam\"";
-        print(STDERR "sent: { $initialParam : $data } # [\"$param\"]\n") if ($DUMP);
+        $response = "{ ".$response." }\n";
+
+        print(STDERR "sent: $response");
 
         printHeader("application/json");
         print("\n");
-        print("{ $initialParam : $data }\n");
+        print($response);
     }
 
 

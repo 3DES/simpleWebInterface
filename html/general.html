@@ -3,18 +3,15 @@
 <head>
 <script src="/jslib.js" type="text/javascript"></script>
 <link rel="stylesheet" href="/menu.css">
-</head>
-<body>
-<div id="pageContent"></div>
-
-
 <script type="text/javascript">
     const blocks = [
         {
             "name" : "Date / Time",
             "elements" : [
-                { "name" : "Date",                  "tag" : "__SYSTEM_DATE__", "type" : "date" },
-                { "name" : "Time",                  "tag" : "__SYSTEM_TIME__", "type" : "time" },
+                { "name" : "Date",           "tag" : "__SYSTEM_DATE__",        "type" : "date"   },
+                { "name" : "Time",           "tag" : "__SYSTEM_TIME__",        "type" : "time"   },
+                { "name" : "NTP",            "tag" : "__SYSTEM_NTP_ENABLED__", "type" : "slider" },
+                { "name" : "Time Zone",      "tag" : "__SYSTEM_TIME_ZONE__",   "type" : "edit"   },
             ]
         },
         {
@@ -33,7 +30,13 @@
                       "60%");
     }
 
-    repaint();
+    document.addEventListener("DOMContentLoaded", function() {
+        // this function runs when the DOM is ready, i.e. when the document has been parsed
+        repaint();
+    });
 </script>
+</head>
+<body>
+<div id="pageContent"></div>
 </body>
 </html>
